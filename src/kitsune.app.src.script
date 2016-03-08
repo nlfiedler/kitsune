@@ -1,0 +1,37 @@
+%
+% Configure the application, with optional user overrides.
+%
+% If a file named user_env.config exists at the base of the application
+% tree, then it will be used to override settings in the application
+% environment. For example, if that file contained the following lines:
+%
+% {period, weekly},
+% {frequency, 2}
+%
+% The result would be to override those three configuration parameters in
+% the default envionment below.
+%
+DefaultEnv = [
+    {period, daily},
+    {frequency, 1}
+].
+AppEnv = case file:consult("user_env.config") of
+    {ok, Terms} ->
+        lists:ukeymerge(1, lists:keysort(1, Terms),  lists:keysort(1, DefaultEnv));
+    {error, enoent} ->
+        DefaultEnv
+    % else, surface the error
+end.
+App = [
+    {description, "Backup GitHub repositories to local disk."},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        lager
+    ]},
+    {mod, {kitsune_app, []}},
+    {env, AppEnv}
+].
+[{application, kitsune, App}].
