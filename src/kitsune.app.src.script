@@ -13,7 +13,8 @@
 %
 DefaultEnv = [
     {period, daily},
-    {frequency, 1}
+    {frequency, 1},
+    {username, os:getenv("USER")}
 ].
 AppEnv = case file:consult("user_env.config") of
     {ok, Terms} ->
@@ -29,7 +30,8 @@ App = [
     {applications, [
         kernel,
         stdlib,
-        lager
+        lager,
+        hackney
     ]},
     {mod, {kitsune_app, []}},
     {env, AppEnv}

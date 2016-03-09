@@ -75,29 +75,17 @@ code_change(_OldVsn, State, _Extra) ->
 process_repos(State) ->
     % TODO: implement the backup functionality
     %
-    % * [octo.erl](https://github.com/sdepold/octo.erl) for GitHub API access in Erlang
-    %     - Lacks user API
-    %     - Could just write the one function, no need for octo.erl
-    %         + HTTP
-    %             * `httpc` Erlang/OTP module is very primitive (see below)
-    %             * https://github.com/benoitc/hackney makes it easy
-    %         + JSON
-    %             * https://github.com/davisp/jiffy looks good, active
-    %             * https://github.com/talentdeficit/jsx
     % * [geef](https://github.com/carlosmn/geef) for Git repo access in Erlang
     %     - Seems to lack remote config access; maybe via `get_string` in `geef_config`
     %     - Do we need the remote config values?
     %     - `git config remote.origin.url` yields the remote url
     %
-    % 1. Retrieve list of repositories for user
-    %     * `curl -i https://api.github.com/users/nlfiedler/repos` -> JSON
-    %     * Parse JSON to get list of maps
-    %     * `name` is the repo name
-    %     * `name` ++ `.git` will be the local repo name
-    %     * `clone_url` is the URL for cloning
+    % 1. Retrieve list of repositories for user (kitsune:fetch_repos/1)
     % 2. For each repository, ensure a bare clone exists locally
+    %    a. App config provides list of destinations for the repos
     % 3. Invoke `git fetch` for each local repository that already exists
-    % 4. Ensure the next timer is created
+    % 4. Invoke `git clone --bare` for each repo not yet cloned
+    % 5. Ensure the next timer is created
     %
     State.
 
@@ -106,8 +94,5 @@ fire_later() ->
     M = gen_server,
     F = cast,
     A = [kitsune_srv, process],
-    % TODO: time needs to be based on app configuration
-    % `hourly` == 3600 * 1000 * N
-    % `daily` == 86400 * 1000 * N
-    % `weekly` == 86400 * 1000 * 7 * N
+    % TODO: call kitsune:timer_value/2 to get value
     timer:apply_after(1000*60*10, M, F, A).

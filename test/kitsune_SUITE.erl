@@ -29,6 +29,8 @@
 init_per_suite(Config) ->
     % ensure lager is configured for testing
     ok = application:set_env(lager, lager_common_test_backend, debug),
+    % starting our app starts everything else that we need (e.g. hackney)
+    {ok, _Started} = application:ensure_all_started(kitsune),
     Config.
 
 end_per_suite(_Config) ->
@@ -36,10 +38,20 @@ end_per_suite(_Config) ->
 
 all() ->
     [
+        fetch_repos_test,
         process_repos_test
     ].
 
-%% Test the processing of repositories functionality.
+fetch_repos_test(_Config) ->
+    % use a GitHub user that we know exists
+    {ok, Repos} = kitsune:fetch_repos("nlfiedler"),
+    % this user has at least one page of results, which is a good test
+    ?assert(length(Repos) > 30),
+    % the repo for this project had better be in the results
+    ?assertNotEqual(undefined, proplists:get_value("kitsune", Repos)),
+    ok.
+
+% Test the processing of repositories functionality.
 process_repos_test(_Config) ->
     % TODO: implement the tests for the backup procedure
     ok.
