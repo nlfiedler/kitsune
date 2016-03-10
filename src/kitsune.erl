@@ -22,7 +22,7 @@
 %% The low-level, easily testable functions.
 %%
 -module(kitsune).
--export([fetch_repos/1]).
+-export([fetch_repos/1, timer_value/2]).
 
 % Retrieve the repositories for the given Username. Returns a property list
 % consisting of repository names as keys, with clone URLs as values.
@@ -77,7 +77,12 @@ extract_repo_info(Repos) ->
 % TODO: function to test if a bare clone exists for a named repo, at a given destination
 % TODO: function to update the already existing repo
 % TODO: function to clone a repo to a destination
-% TODO: function to return millis for next timer, given period and frequency
-%       `hourly` -> 3600 * 1000 * N
-%       `daily` -> 86400 * 1000 * N
-%       `weekly` -> 86400 * 1000 * 7 * N
+
+% Return the milliseconds for the given period and frequency. For instance, a
+% period of 'hourly' and frequency of 12 yields 43,200,000 milliseconds.
+timer_value(hourly, Frequency) when is_integer(Frequency) ->
+    3600 * 1000 * Frequency;
+timer_value(daily, Frequency) when is_integer(Frequency) ->
+    86400 * 1000 * Frequency;
+timer_value(weekly, Frequency) when is_integer(Frequency) ->
+    86400 * 1000 * 7 * Frequency.

@@ -94,5 +94,6 @@ fire_later() ->
     M = gen_server,
     F = cast,
     A = [kitsune_srv, process],
-    % TODO: call kitsune:timer_value/2 to get value
-    timer:apply_after(1000*60*10, M, F, A).
+    {ok, Period} = application:get_env(kitsune, period),
+    {ok, Frequency} = application:get_env(kitsune, frequency),
+    timer:apply_after(kitsune:timer_value(Period, Frequency), M, F, A).

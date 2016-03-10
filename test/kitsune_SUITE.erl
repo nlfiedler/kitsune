@@ -39,6 +39,7 @@ end_per_suite(_Config) ->
 all() ->
     [
         fetch_repos_test,
+        timer_value_test,
         process_repos_test
     ].
 
@@ -49,6 +50,15 @@ fetch_repos_test(_Config) ->
     ?assert(length(Repos) > 30),
     % the repo for this project had better be in the results
     ?assertNotEqual(undefined, proplists:get_value("kitsune", Repos)),
+    ok.
+
+timer_value_test(_Config) ->
+    ?assertEqual(3600000, kitsune:timer_value(hourly, 1)),
+    ?assertEqual(43200000, kitsune:timer_value(hourly, 12)),
+    ?assertEqual(172800000, kitsune:timer_value(daily, 2)),
+    ?assertEqual(2419200000, kitsune:timer_value(weekly, 4)),
+    ?assertError(function_clause, kitsune:timer_value(foobar, 10)),
+    ?assertError(function_clause, kitsune:timer_value(daily, "10")),
     ok.
 
 % Test the processing of repositories functionality.
