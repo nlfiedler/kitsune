@@ -33,6 +33,9 @@ App = [
         lager,
         hackney
     ]},
+    {included_applications, [
+        jiffy
+    ]},
     {mod, {kitsune_app, []}},
     {env, AppEnv}
 ].

@@ -2,9 +2,8 @@
 *.o
 *.plt
 .eunit
-.rebar
-deps
-ebin
+_build
 erl_crash.dump
 logs
+rebar.lock
 user_env.config

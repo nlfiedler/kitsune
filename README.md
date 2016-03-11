@@ -7,21 +7,20 @@ An Erlang/OTP application for backing up the GitHub repositories of a particular
 ### Prerequisites
 
 * [Erlang/OTP](http://www.erlang.org) R18 or higher
-* [rebar](https://github.com/rebar/rebar/) for compiling and testing
-* [relx](https://github.com/erlware/relx) for building a release
+* [rebar3](https://github.com/erlang/rebar3/) 3.0.0 or higher
 
-To download the dependencies, build the application, and run the test suite, use `make` as follows:
+To download the dependencies, build the application, and run the test suite, use `rebar3` as follows:
 
 ```
-$ make test
+$ rebar3 ct
 ```
 
 ### Deploying
 
 1. Write a configuration file, named `user_env.config`, at the base of the source tree.
     * See `example.config` in the `docs` directory.
-1. Build the release: `make release`
-1. Copy the contents of `_rel` to the desired installation location (e.g. `/opt`).
+1. Build the release: `rebar3 release`
+1. Copy the contents of `_build/default/rel` to the desired installation location.
 1. Start it up, likely using `sudo`.
 1. Occasionally check the log files in `/opt/kitsune/log`.
 
@@ -29,9 +28,9 @@ For example:
 
 ```shell
 $ cp ~/kitsune.config user_env.config
-$ make release
+$ rebar3 release
 $ sudo mkdir -p /opt
-$ sudo cp -R _rel/kitsune /opt
+$ sudo cp -R _build/default/rel/kitsune /opt
 $ sudo /opt/kitsune/bin/kitsune -detached
 ```
 
