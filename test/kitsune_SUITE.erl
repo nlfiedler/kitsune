@@ -95,7 +95,6 @@ process_repos_test(Config) ->
     PrivDir = ?config(priv_dir, Config),
     ok = application:set_env(kitsune, destination, PrivDir),
     ok = application:set_env(kitsune, username, "nlfiedler"),
-    % Without the worker pool: 110s
     ok = gen_server:call(kitsune_srv, begin_backup, infinity),
     % Do not test for wivrr, since earlier tests already created it, but test
     % for a few repos that are likely to always exist. In fact, having a clone

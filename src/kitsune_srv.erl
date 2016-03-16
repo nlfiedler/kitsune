@@ -80,8 +80,6 @@ process_repos(_State) ->
         kitsune:clone_exists(BaseDir, Name)
     end,
     {Locals, Remotes} = lists:partition(IsLocal, AllRepos),
-    % TODO: consider having a pool of processes to parallelize the work
-    %       https://github.com/inaka/worker_pool
     Fetcher = fun({Name, _Url}) ->
         ok = kitsune:git_fetch(BaseDir, Name)
     end,
