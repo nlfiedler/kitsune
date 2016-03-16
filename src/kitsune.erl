@@ -22,7 +22,7 @@
 %% The low-level, easily testable functions.
 %%
 -module(kitsune).
--export([fetch_repos/1, timer_value/2]).
+-export([fetch_repos/1, timer_value/2, clone_exists/2, git_clone/2, git_fetch/2]).
 
 % Retrieve the repositories for the given Username. Returns a property list
 % consisting of repository names as keys, with clone URLs as values.
@@ -63,7 +63,7 @@ fetch_repos(Url, ReqHeaders, Acc) ->
 
 % Extract the repository names and clone URLs from the given decoded JSON
 % response (a list of 1-tuples, each containing a list of properties).
-% Return the result a a property list with the names as keys, and values
+% Return the result as a property list with the names as keys, and values
 % are the clone URLs.
 extract_repo_info(Repos) ->
     GetNameAndUrl = fun(Elem) ->
@@ -74,9 +74,40 @@ extract_repo_info(Repos) ->
     % For some reason the proplists are inside a tuple of 1, hence the {Repo}.
     [GetNameAndUrl(Repo) || {Repo} <- Repos].
 
-% TODO: function to test if a bare clone exists for a named repo, at a given destination
-% TODO: function to update the already existing repo
-% TODO: function to clone a repo to a destination
+% Test if a bare git clone exists at the given location, for the named
+% repository. Returns true or false.
+clone_exists(BaseDir, RepoName) ->
+    DirName = RepoName ++ ".git",
+    HeadName = filename:join([BaseDir, DirName, "HEAD"]),
+    case file:read_file_info(HeadName) of
+        {ok, _FileInfo} -> true;
+        {error, enoent} -> false
+        % if any other error, let it crash
+    end.
+
+% Create a bare clone of the repository identified by the given URL, storing it
+% within the named directory. Will raise an error if the git executable is not
+% found in the path.
+git_clone(BaseDir, RepoUrl) ->
+    GitBin = ensure_git_in_path(),
+    Args = ["clone", "--quiet", "--mirror", RepoUrl],
+    Port = erlang:open_port({spawn_executable, GitBin},
+        [exit_status, {args, Args}, {cd, BaseDir}]),
+    {ok, 0} = wait_for_port(Port),
+    ok.
+
+% Update the existing git mirror with the latest commits from upstream.
+git_fetch(BaseDir, RepoName) ->
+    GitBin = ensure_git_in_path(),
+    true = clone_exists(BaseDir, RepoName),
+    RepoDir = filename:join(BaseDir, RepoName ++ ".git"),
+    % The combination of 'git clone --mirror' and 'git fetch --prune' should
+    % remove any tags that were removed from the remote repository.
+    Args = ["fetch", "--quiet", "--prune", "--all"],
+    Port = erlang:open_port({spawn_executable, GitBin},
+        [exit_status, {args, Args}, {cd, RepoDir}]),
+    {ok, 0} = wait_for_port(Port),
+    ok.
 
 % Return the milliseconds for the given period and frequency. For instance, a
 % period of 'hourly' and frequency of 12 yields 43,200,000 milliseconds.
@@ -86,3 +117,46 @@ timer_value(daily, Frequency) when is_integer(Frequency) ->
     86400 * 1000 * Frequency;
 timer_value(weekly, Frequency) when is_integer(Frequency) ->
     86400 * 1000 * 7 * Frequency.
+
+% Ensure the git executable can be found in the path. Raises an error if it is
+% missing, otherwise returns the full path to the executable.
+ensure_git_in_path() ->
+    case os:find_executable("git") of
+        false ->
+            lager:error("cannot find 'git' executable"),
+            error(git_not_found);
+        GitBin -> GitBin
+    end.
+
+% Wait for the given Port to complete and return the exit code in the form
+% of {ok, Status}. Any output received is written to the log. If the port
+% experiences an error, returns {error, Reason}.
+wait_for_port(Port) ->
+    wait_for_port(Port, false).
+
+% Wait for the given Port to complete and return the exit code in the form
+% of {ok, Status}. Any output received is written to the log. If the port
+% experiences an error, returns {error, Reason}. If Quiet is true, output
+% from the port is ignored.
+wait_for_port(Port, Quiet) when is_boolean(Quiet) ->
+    receive
+        {Port, {exit_status, Status}} ->
+            ensure_port_closed(Port),
+            {ok, Status};
+        {Port, {data, Data}} ->
+            if Quiet -> lager:notice("output from port ignored...");
+                true -> lager:notice("received output from port: ~s", [Data])
+            end,
+            wait_for_port(Port, Quiet);
+        {'EXIT', Port, Reason} ->
+            lager:info("port ~w exited, ~w", [Port, Reason]),
+            {error, Reason}
+    end.
+
+% Ensure that the given Port has been properly closed. Does nothing if the
+% port is not open.
+ensure_port_closed(Port) ->
+    case erlang:port_info(Port) of
+        undefined -> ok;
+        _         -> erlang:port_close(Port)
+    end.

@@ -72,22 +72,26 @@ code_change(_OldVsn, State, _Extra) ->
 %%
 
 % Process the repositories, then set up the next timer.
-process_repos(State) ->
-    % TODO: implement the backup functionality
-    %
-    % * [geef](https://github.com/carlosmn/geef) for Git repo access in Erlang
-    %     - Seems to lack remote config access; maybe via `get_string` in `geef_config`
-    %     - Do we need the remote config values?
-    %     - `git config remote.origin.url` yields the remote url
-    %
-    % 1. Retrieve list of repositories for user (kitsune:fetch_repos/1)
-    % 2. For each repository, ensure a bare clone exists locally
-    %    a. App config provides list of destinations for the repos
-    % 3. Invoke `git fetch` for each local repository that already exists
-    % 4. Invoke `git clone --bare` for each repo not yet cloned
-    % 5. Ensure the next timer is created
-    %
-    State.
+process_repos(_State) ->
+    {ok, Username} = application:get_env(kitsune, username),
+    {ok, BaseDir} = application:get_env(kitsune, destination),
+    {ok, AllRepos} = kitsune:fetch_repos(Username),
+    IsLocal = fun({Name, _Url}) ->
+        kitsune:clone_exists(BaseDir, Name)
+    end,
+    {Locals, Remotes} = lists:partition(IsLocal, AllRepos),
+    % TODO: consider having a pool of processes to parallelize the work
+    %       https://github.com/inaka/worker_pool
+    Fetcher = fun({Name, _Url}) ->
+        ok = kitsune:git_fetch(BaseDir, Name)
+    end,
+    ok = lists:foreach(Fetcher, Locals),
+    Cloner = fun({_Name, Url}) ->
+        ok = kitsune:git_clone(BaseDir, Url)
+    end,
+    ok = lists:foreach(Cloner, Remotes),
+    {ok, TRef} = fire_later(),
+    #state{timer=TRef}.
 
 % Start a timer to cast a 'process' message to us at the next backup time.
 fire_later() ->

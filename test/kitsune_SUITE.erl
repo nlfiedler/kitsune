@@ -40,6 +40,8 @@ all() ->
     [
         fetch_repos_test,
         timer_value_test,
+        clone_exists_test,
+        git_clone_test,
         process_repos_test
     ].
 
@@ -61,7 +63,47 @@ timer_value_test(_Config) ->
     ?assertError(function_clause, kitsune:timer_value(daily, "10")),
     ok.
 
+clone_exists_test(_Config) ->
+    % Hack to ensure our repository exists by using an empty repo name; while
+    % this is not a bare clone, it works for the purpose of the test.
+    ?assert(kitsune:clone_exists(os:getenv("PWD"), "")),
+    ?assertNot(kitsune:clone_exists("/tmp", "foobar")),
+    ok.
+
+% Test the combination of git_clone/2 and git_fetch/2 so we avoid cloning the
+% same repository twice.
+git_clone_test(Config) ->
+    %
+    % Test cloning a repository...
+    %
+    PrivDir = ?config(priv_dir, Config),
+    RepoUrl = "https://github.com/nlfiedler/wivrr.git",
+    ok = kitsune:git_clone(PrivDir, RepoUrl),
+    RepoName = "wivrr",
+    ?assert(kitsune:clone_exists(PrivDir, RepoName)),
+    %
+    % Now update the cloned repository; hard to test that anything really
+    % happened without first pushing new changes to the remote, which is ugly.
+    % But at least we know it didn't explode.
+    %
+    ok = kitsune:git_fetch(PrivDir, RepoName),
+    ?assert(kitsune:clone_exists(PrivDir, RepoName)),
+    ok.
+
 % Test the processing of repositories functionality.
-process_repos_test(_Config) ->
-    % TODO: implement the tests for the backup procedure
+process_repos_test(Config) ->
+    PrivDir = ?config(priv_dir, Config),
+    ok = application:set_env(kitsune, destination, PrivDir),
+    ok = application:set_env(kitsune, username, "nlfiedler"),
+    % Without the worker pool: 110s
+    ok = gen_server:call(kitsune_srv, begin_backup, infinity),
+    % Do not test for wivrr, since earlier tests already created it, but test
+    % for a few repos that are likely to always exist. In fact, having a clone
+    % that already exists is a good test.
+    ?assert(kitsune:clone_exists(PrivDir, "kitsune")),
+    ?assert(kitsune:clone_exists(PrivDir, "jswat")),
+    ?assert(kitsune:clone_exists(PrivDir, "replicaz")),
+    ?assert(kitsune:clone_exists(PrivDir, "tanuki")),
+    ?assert(kitsune:clone_exists(PrivDir, "akashita")),
+    ?assert(kitsune:clone_exists(PrivDir, "provisioning")),
     ok.

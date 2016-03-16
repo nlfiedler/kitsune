@@ -1,20 +1,21 @@
 %
 % Configure the application, with optional user overrides.
 %
-% If a file named user_env.config exists at the base of the application
-% tree, then it will be used to override settings in the application
-% environment. For example, if that file contained the following lines:
+% If a file named user_env.config exists at the base of the application tree,
+% then it will be used to override settings in the application environment. For
+% example, if that file contained the following lines:
 %
 % {period, weekly},
 % {frequency, 2}
 %
-% The result would be to override those three configuration parameters in
-% the default envionment below.
+% The result would be to override those two configuration parameters in the
+% default envionment below.
 %
 DefaultEnv = [
     {period, daily},
     {frequency, 1},
-    {username, os:getenv("USER")}
+    {username, os:getenv("USER")},
+    {destination, "/tmp"}
 ].
 AppEnv = case file:consult("user_env.config") of
     {ok, Terms} ->
