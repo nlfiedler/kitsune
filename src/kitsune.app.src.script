@@ -26,7 +26,7 @@ AppEnv = case file:consult("user_env.config") of
 end.
 App = [
     {description, "Backup GitHub repositories to local disk."},
-    {vsn, "0.1.0"},
+    {vsn, "0.1.1"},
     {registered, []},
     {applications, [
         kernel,

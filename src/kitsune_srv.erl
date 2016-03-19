@@ -76,16 +76,19 @@ process_repos(_State) ->
     {ok, Username} = application:get_env(kitsune, username),
     {ok, BaseDir} = application:get_env(kitsune, destination),
     {ok, AllRepos} = kitsune:fetch_repos(Username),
+    lager:info("fetched metadata for ~w repositories", [length(AllRepos)]),
     IsLocal = fun({Name, _Url}) ->
         kitsune:clone_exists(BaseDir, Name)
     end,
     {Locals, Remotes} = lists:partition(IsLocal, AllRepos),
     Fetcher = fun({Name, _Url}) ->
-        ok = kitsune:git_fetch(BaseDir, Name)
+        ok = kitsune:git_fetch(BaseDir, Name),
+        lager:info("updated repository ~s", [Name])
     end,
     ok = lists:foreach(Fetcher, Locals),
-    Cloner = fun({_Name, Url}) ->
-        ok = kitsune:git_clone(BaseDir, Url)
+    Cloner = fun({Name, Url}) ->
+        ok = kitsune:git_clone(BaseDir, Url),
+        lager:info("cloned repository ~s", [Name])
     end,
     ok = lists:foreach(Cloner, Remotes),
     {ok, TRef} = fire_later(),
@@ -98,4 +101,5 @@ fire_later() ->
     A = [kitsune_srv, process],
     {ok, Period} = application:get_env(kitsune, period),
     {ok, Frequency} = application:get_env(kitsune, frequency),
+    lager:info("setting timer for period ~w, frequency ~w", [Period, Frequency]),
     timer:apply_after(kitsune:timer_value(Period, Frequency), M, F, A).
