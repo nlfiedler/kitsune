@@ -88,14 +88,8 @@ process_repos(_State) ->
         end,
         ok
     end,
-    % Let the Erlang VM handle balancing the load, just throw everything at
-    % it at once. Only the BEAM really knows what the system can do.
-    {Finished, Failed} = kitsune:parallel(ProcessRepo, AllRepos),
-    lager:info("processed ~w repositories successfully", [length(Finished)]),
-    case Failed of
-        [] -> ok;
-        _F -> lager:error("~p repositories failed, check the log", [length(Failed)])
-    end,
+    ok = lists:foreach(ProcessRepo, AllRepos),
+    lager:info("finished processing all repositories"),
     {ok, TRef} = fire_later(),
     #state{timer=TRef}.
 
