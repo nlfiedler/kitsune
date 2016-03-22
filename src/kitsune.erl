@@ -23,6 +23,7 @@
 %%
 -module(kitsune).
 -export([fetch_repos/1, timer_value/2, clone_exists/2, git_clone/2, git_fetch/2]).
+-export([parallel/2]).
 
 % Retrieve the repositories for the given Username. Returns a property list
 % consisting of repository names as keys, with clone URLs as values.
@@ -159,4 +160,38 @@ ensure_port_closed(Port) ->
     case erlang:port_info(Port) of
         undefined -> ok;
         _         -> erlang:port_close(Port)
+    end.
+
+% Spawn processes to invoke the given Function, each taking a single
+% element from the list of Tasks. Waits for all of the processes to
+% complete and returns a tuple of the accumlated results and the data
+% elements that failed to be processed.
+parallel(Function, Tasks) ->
+    join(fork(Function, Tasks), [], []).
+
+% Perform the fork in the fork/join algorithm. Returns a list of pids of
+% the spawned processes.
+fork(Function, Tasks) ->
+    Parent = self(),
+    Invoker = fun(Task) -> spawn(fun() -> invoke(Parent, Function, Task) end) end,
+    lists:map(Invoker, Tasks).
+
+% Perform the join in the fork/join algorithm. Returns a tuple of the
+% accumulated results (in order of completion) and the data elements that
+% produced errors.
+join([], Results, Failed) -> {Results, Failed};
+join(Pids, Results, Failed) ->
+    receive
+        {From, {error, Data}} -> join(lists:delete(From, Pids), Results, [Data|Failed]);
+        {From, Result} -> join(lists:delete(From, Pids), [Result|Results], Failed)
+    end.
+
+% Invoke the function with the given data.
+invoke(Receiver, Function, Data) ->
+    try Function(Data) of
+        Result -> Receiver ! {self(), Result}
+    catch
+        error:Error ->
+            lager:error("Function(~w) caused error ~p", [Data, Error]),
+            Receiver ! {self(), {error, Data}}
     end.

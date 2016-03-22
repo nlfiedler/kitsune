@@ -42,6 +42,7 @@ all() ->
         timer_value_test,
         clone_exists_test,
         git_clone_test,
+        parallel_test,
         process_repos_test
     ].
 
@@ -88,6 +89,17 @@ git_clone_test(Config) ->
     %
     ok = kitsune:git_fetch(PrivDir, RepoName),
     ?assert(kitsune:clone_exists(PrivDir, RepoName)),
+    ok.
+
+% Test the fork/join functionality.
+parallel_test(_Config) ->
+    Inputs = [good, good, bad, good, bad, good],
+    Proc = fun(good) -> "good";
+              (bad)  -> error("bad input")
+       end,
+    {Results, Failed} = kitsune:parallel(Proc, Inputs),
+    ?assertEqual(4, length(Results)),
+    ?assertEqual(2, length(Failed)),
     ok.
 
 % Test the processing of repositories functionality.

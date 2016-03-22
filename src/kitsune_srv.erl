@@ -77,20 +77,25 @@ process_repos(_State) ->
     {ok, BaseDir} = application:get_env(kitsune, destination),
     {ok, AllRepos} = kitsune:fetch_repos(Username),
     lager:info("fetched metadata for ~w repositories", [length(AllRepos)]),
-    IsLocal = fun({Name, _Url}) ->
-        kitsune:clone_exists(BaseDir, Name)
+    ProcessRepo = fun({Name, Url}) ->
+        case kitsune:clone_exists(BaseDir, Name) of
+            true ->
+                ok = kitsune:git_fetch(BaseDir, Name),
+                lager:info("updated repository ~s", [Name]);
+            false ->
+                ok = kitsune:git_clone(BaseDir, Url),
+                lager:info("cloned repository ~s", [Name])
+        end,
+        ok
     end,
-    {Locals, Remotes} = lists:partition(IsLocal, AllRepos),
-    Fetcher = fun({Name, _Url}) ->
-        ok = kitsune:git_fetch(BaseDir, Name),
-        lager:info("updated repository ~s", [Name])
+    % Let the Erlang VM handle balancing the load, just throw everything at
+    % it at once. Only the BEAM really knows what the system can do.
+    {Finished, Failed} = kitsune:parallel(ProcessRepo, AllRepos),
+    lager:info("processed ~w repositories successfully", [length(Finished)]),
+    case Failed of
+        [] -> ok;
+        _F -> lager:error("~p repositories failed, check the log", [length(Failed)])
     end,
-    ok = lists:foreach(Fetcher, Locals),
-    Cloner = fun({Name, Url}) ->
-        ok = kitsune:git_clone(BaseDir, Url),
-        lager:info("cloned repository ~s", [Name])
-    end,
-    ok = lists:foreach(Cloner, Remotes),
     {ok, TRef} = fire_later(),
     #state{timer=TRef}.
 
