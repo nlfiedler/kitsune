@@ -38,7 +38,8 @@ App = [
         kernel,
         stdlib,
         lager,
-        hackney
+        hackney,
+        poolboy
     ]},
     {included_applications, [
         jiffy
