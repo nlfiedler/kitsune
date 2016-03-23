@@ -42,6 +42,7 @@ all() ->
         timer_value_test,
         clone_exists_test,
         git_clone_test,
+        parallel_test,
         process_repos_test
     ].
 
@@ -88,6 +89,18 @@ git_clone_test(Config) ->
     %
     ok = kitsune:git_fetch(PrivDir, RepoName),
     ?assert(kitsune:clone_exists(PrivDir, RepoName)),
+    ok.
+
+% Test the fork/join functionality.
+parallel_test(_Config) ->
+    poolboy:start_link([{name, {local, worker_test}},
+                        {worker_module, kitsune_test_worker},
+                        {size, 8}, {max_overflow, 0}]),
+    % While we cannot know which inputs failed, we can at least regain
+    % control and hope they magically work the next time around. Not in
+    % this test, of course, but in the actual application.
+    Inputs = [good, good, good, bad, good, bad, good, bad, good, bad, bad, good],
+    ok = kitsune:parallel(worker_test, Inputs),
     ok.
 
 % Test the processing of repositories functionality.

@@ -18,26 +18,36 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
--module(kitsune_sup).
--behaviour(supervisor).
+%%
+%% A test worker.
+%%
+-module(kitsune_test_worker).
+-behaviour(gen_server).
+-behaviour(poolboy_worker).
 
--export([start_link/0]).
--export([init/1]).
+-export([start_link/1]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
+         code_change/3]).
 
-start_link() ->
-    supervisor:start_link(?MODULE, []).
+start_link(_Args) ->
+    gen_server:start_link(?MODULE, [], []).
 
 init([]) ->
-    % Set up supervision for our gen_server and the workers in the pool.
-    Kitsune = [
-        {kitsune_srv,
-         {kitsune_srv, start_link, []},
-         permanent, 5000, worker, [kitsune_srv]}
-    ],
-    {ok, Pools} = application:get_env(kitsune, pools),
-    PoolSpecs = lists:map(fun({Name, SizeArgs, WorkerArgs}) ->
-        PoolArgs = [{name, {local, Name}},
-                    {worker_module, kitsune_worker}] ++ SizeArgs,
-        poolboy:child_spec(Name, PoolArgs, WorkerArgs)
-    end, Pools),
-    {ok, {{one_for_one, 10, 10}, Kitsune ++ PoolSpecs}}.
+    {ok, undefined}.
+
+handle_call(good, _From, State) ->
+    {reply, "good", State};
+handle_call(bad, _From, _State) ->
+    error("bad input").
+
+handle_cast(_Event, State) ->
+    {noreply, State}.
+
+handle_info(_Info, State) ->
+    {noreply, State}.
+
+terminate(_Reason, _State) ->
+    ok.
+
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.

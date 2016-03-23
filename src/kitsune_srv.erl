@@ -26,6 +26,8 @@
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
+-define(POOL, workers).
+
 -record(state, {timer}).
 
 %%
@@ -77,19 +79,11 @@ process_repos(_State) ->
     {ok, BaseDir} = application:get_env(kitsune, destination),
     {ok, AllRepos} = kitsune:fetch_repos(Username),
     lager:info("fetched metadata for ~w repositories", [length(AllRepos)]),
-    ProcessRepo = fun({Name, Url}) ->
-        case kitsune:clone_exists(BaseDir, Name) of
-            true ->
-                ok = kitsune:git_fetch(BaseDir, Name),
-                lager:info("updated repository ~s", [Name]);
-            false ->
-                ok = kitsune:git_clone(BaseDir, Url),
-                lager:info("cloned repository ~s", [Name])
-        end,
-        ok
-    end,
-    ok = lists:foreach(ProcessRepo, AllRepos),
-    lager:info("finished processing all repositories"),
+    % Prepare the arguments for the worker pool processes.
+    ArgList = [{process, Name, Url, BaseDir} || {Name, Url} <- AllRepos],
+    % Farm out the work and wait for the workers to finish.
+    ok = kitsune:parallel(?POOL, ArgList),
+    lager:info("finished processing the repositories"),
     {ok, TRef} = fire_later(),
     #state{timer=TRef}.
 

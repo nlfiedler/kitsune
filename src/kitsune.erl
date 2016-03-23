@@ -23,6 +23,7 @@
 %%
 -module(kitsune).
 -export([fetch_repos/1, timer_value/2, clone_exists/2, git_clone/2, git_fetch/2]).
+-export([parallel/2]).
 
 % Retrieve the repositories for the given Username. Returns a property list
 % consisting of repository names as keys, with clone URLs as values.
@@ -160,3 +161,43 @@ ensure_port_closed(Port) ->
         undefined -> ok;
         _         -> erlang:port_close(Port)
     end.
+
+% Spawn a process for every entry in the list of arguments and use the
+% workers in the named pool to perform the work. The elements in the
+% arguments list are passed to the worker via gen_server:call/3. By using
+% the pool, the throughput can be controlled so as to avoid unnecessary
+% contention. Uses a simple fork/join algorithm to wait for all of the
+% processes to complete.
+%
+% Returns 'ok'.
+parallel(PoolName, ArgList) ->
+    join(fork(PoolName, ArgList)).
+
+% Perform the fork in the fork/join algorithm. Returns a list of pids of
+% the spawned processes.
+fork(PoolName, ArgList) ->
+    Invoker = fun(Args) -> spawn_monitor(fun() -> invoke(PoolName, Args) end) end,
+    [Pid || {Pid, _Ref} <- lists:map(Invoker, ArgList)].
+
+% Perform the join in the fork/join algorithm. Waits for all of the spawned
+% processes to terminate. Returns 'ok'.
+join([]) -> ok;
+join(Pids) ->
+    receive
+        {'DOWN', _Ref, process, Pid, normal} -> join(lists:delete(Pid, Pids));
+        {'DOWN', _Ref, process, Pid, Reason} ->
+            lager:error("process ~p exited abnormally: ~p", [Pid, Reason]),
+            join(lists:delete(Pid, Pids));
+        Msg -> lager:error("unexpected message: ~p", [Msg])
+    end.
+
+% Retrieve a worker and have it process the given input, then return it
+% back to the pool.
+invoke(PoolName, Args) ->
+    % Wait indefinitely to get a worker from the pool, since we may have
+    % far more work to perform than we have available workers.
+    poolboy:transaction(PoolName, fun(Worker) ->
+        % Must wait indefinitely for the worker to perform their work since
+        % we are cloning repositories that may take more than 5 seconds.
+        gen_server:call(Worker, Args, infinity)
+    end, infinity).
