@@ -1,7 +1,7 @@
 %% -*- coding: utf-8 -*-
 %% -------------------------------------------------------------------
 %%
-%% Copyright (c) 2016 Nathan Fiedler
+%% Copyright (c) 2016-2017 Nathan Fiedler
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -22,7 +22,13 @@
 %% The test suite.
 %%
 -module(kitsune_SUITE).
--compile(export_all).
+-export([init_per_suite/1, end_per_suite/1, all/0]).
+-export([fetch_repos_test/1]).
+-export([timer_value_test/1]).
+-export([clone_exists_test/1]).
+-export([git_clone_test/1]).
+-export([parallel_test/1]).
+-export([process_repos_test/1]).
 -include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
 

@@ -1,7 +1,7 @@
 %% -*- coding: utf-8 -*-
 %% -------------------------------------------------------------------
 %%
-%% Copyright (c) 2016 Nathan Fiedler
+%% Copyright (c) 2016-2017 Nathan Fiedler
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -104,10 +104,16 @@ git_fetch(BaseDir, RepoName) ->
     RepoDir = filename:join(BaseDir, RepoName ++ ".git"),
     % The combination of 'git clone --mirror' and 'git fetch --prune' should
     % remove any tags that were removed from the remote repository.
-    Args = ["fetch", "--quiet", "--prune", "--all"],
+    Args = ["fetch", "--quiet", "--tags", "--prune", "--all"],
     Port = erlang:open_port({spawn_executable, GitBin},
         [exit_status, {args, Args}, {cd, RepoDir}]),
     {ok, 0} = wait_for_port(Port),
+    % Manually update the HEAD file so git log looks reasonable, otherwise it
+    % is alarming when the repo appears to be missing recent changes. Because
+    % the repo is bare we cannot use git-merge or git-pull.
+    FetchHead = filename:join(RepoDir, "FETCH_HEAD"),
+    Head = filename:join(RepoDir, "HEAD"),
+    {ok, _BytesCopied} = file:copy(FetchHead, Head),
     ok.
 
 % Return the milliseconds for the given period and frequency. For instance, a
