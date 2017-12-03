@@ -76,8 +76,9 @@ code_change(_OldVsn, State, _Extra) ->
 % Process the repositories, then set up the next timer.
 process_repos(_State) ->
     {ok, Username} = application:get_env(kitsune, username),
+    Password = application:get_env(kitsune, password, ""),
     {ok, BaseDir} = application:get_env(kitsune, destination),
-    {ok, AllRepos} = kitsune:fetch_repos(Username),
+    {ok, AllRepos} = kitsune:fetch_repos(Username, Password),
     lager:info("fetched metadata for ~w repositories", [length(AllRepos)]),
     % Prepare the arguments for the worker pool processes.
     ArgList = [{process, Name, Url, BaseDir} || {Name, Url} <- AllRepos],

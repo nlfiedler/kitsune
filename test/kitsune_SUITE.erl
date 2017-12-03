@@ -54,7 +54,7 @@ all() ->
 
 fetch_repos_test(_Config) ->
     % use a GitHub user that we know exists
-    {ok, Repos} = kitsune:fetch_repos("nlfiedler"),
+    {ok, Repos} = kitsune:fetch_repos("nlfiedler", ""),
     % this user has at least one page of results, which is a good test
     ?assert(length(Repos) > 30),
     % the repo for this project had better be in the results

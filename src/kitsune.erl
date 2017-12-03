@@ -22,20 +22,27 @@
 %% The low-level, easily testable functions.
 %%
 -module(kitsune).
--export([fetch_repos/1, timer_value/2, clone_exists/2, git_clone/2, git_fetch/2]).
+-export([fetch_repos/2, timer_value/2, clone_exists/2, git_clone/2, git_fetch/2]).
 -export([parallel/2]).
 
 % Retrieve the repositories for the given Username. Returns a property list
 % consisting of repository names as keys, with clone URLs as values.
-fetch_repos(Username) ->
+fetch_repos(Username, Password) when is_list(Username) ->
+    fetch_repos(list_to_binary(Username), list_to_binary(Password));
+fetch_repos(Username, <<"">>) when is_binary(Username) ->
     Url = io_lib:format("https://api.github.com/users/~s/repos", [Username]),
     ReqHeaders = [{"User-Agent", "kitsune"}],
-    fetch_repos(Url, ReqHeaders, []).
+    fetch_repos(Url, [], ReqHeaders, []);
+fetch_repos(Username, Password) when is_binary(Username) ->
+    Url = "https://api.github.com/user/repos",
+    ReqHeaders = [{"User-Agent", "kitsune"}],
+    Options = [{basic_auth, {Username, Password}}],
+    fetch_repos(Url, Options, ReqHeaders, []).
 
 % Retrieve the repositories from the given Url, with the provided request
 % headers, and previously acquired results, if any.
-fetch_repos(Url, ReqHeaders, Acc) ->
-    {ok, _Status, Headers, Client} = hackney:request(get, Url, ReqHeaders),
+fetch_repos(Url, Options, ReqHeaders, Acc) ->
+    {ok, _Status, Headers, Client} = hackney:request(get, Url, ReqHeaders, <<>>, Options),
     {ok, Body} = hackney:body(Client),
     Repos = jiffy:decode(Body),
     Results = Acc ++ extract_repo_info(Repos),
@@ -58,7 +65,7 @@ fetch_repos(Url, ReqHeaders, Acc) ->
                     {match, [_W, {Off, Len}]} = re:run(NextLinkEntry, "<(.+)>; rel=\"next\""),
                     NextLink = string:substr(NextLinkEntry, Off + 1, Len),
                     % Recursively fetch the next page of results.
-                    fetch_repos(NextLink, ReqHeaders, Results)
+                    fetch_repos(NextLink, Options, ReqHeaders, Results)
             end
     end.
 
