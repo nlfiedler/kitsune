@@ -55,8 +55,7 @@ all() ->
 fetch_repos_test(_Config) ->
     % use a GitHub user that we know exists
     {ok, Repos} = kitsune:fetch_repos("nlfiedler", ""),
-    % this user has at least one page of results, which is a good test
-    ?assert(length(Repos) > 30),
+    ?assert(length(Repos) > 10),
     % the repo for this project had better be in the results
     ?assertNotEqual(undefined, proplists:get_value("kitsune", Repos)),
     ok.
@@ -121,7 +120,5 @@ process_repos_test(Config) ->
     ?assert(kitsune:clone_exists(PrivDir, "kitsune")),
     ?assert(kitsune:clone_exists(PrivDir, "jswat")),
     ?assert(kitsune:clone_exists(PrivDir, "replicaz")),
-    ?assert(kitsune:clone_exists(PrivDir, "tanuki")),
     ?assert(kitsune:clone_exists(PrivDir, "akashita")),
-    ?assert(kitsune:clone_exists(PrivDir, "provisioning")),
     ok.
