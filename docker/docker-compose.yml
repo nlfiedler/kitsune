@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  kitsune:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    # override the default of erl as we want to run tests
+    entrypoint: bash
+    stdin_open: true
+    tty: true

@@ -15,25 +15,24 @@ To download the dependencies, build the application, and run the test suite, use
 $ rebar3 ct
 ```
 
-### Deploying
-
-1. Write a configuration file, named `user_env.config`, at the base of the source tree.
-    * See `example.config` in the `docs` directory.
-1. Build the release: `rebar3 release`
-1. Copy the contents of `_build/default/rel` to the desired installation location.
-1. Start it up, likely using `sudo`.
-1. Occasionally check the log files in `/opt/kitsune/log`.
-
-For example:
+### Using Docker
 
 ```shell
-$ cp ~/kitsune.config user_env.config
-$ rebar3 release
-$ sudo mkdir -p /opt
-$ sudo cp -R _build/default/rel/kitsune /opt
-$ sudo /opt/kitsune/bin/kitsune -detached
+$ cd docker
+$ docker-compose build
+$ docker-compose run kitsune
+> rebar3 ct
 ```
 
-### BSD daemon
+## Deploying
 
-See the `config/kitsune.rc` file for an example of managing the kitsune application as a daemon via `rc.d` in BSD systems (in particular FreeBSD, and likely NetBSD as well). You will need to build and deploy the application as described above, and then use the `service` command to start it, as illustrated in `kitsune.rc`.
+### Docker
+
+The application is easily deployed using [Docker](https://www.docker.com), as
+there is a provided `Dockerfile` and `docker-compose.yml` file for building and
+running the application in Docker.
+
+1. Write a configuration file, named `user_env.config`, at the base of the source tree.
+    * See `example.config` in the `config` directory.
+1. Build the release: `rebar3 release`
+1. Copy the contents of `_build/default/rel` to the desired installation location.
